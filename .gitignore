@@ -1,0 +1,11 @@
+# Cache
+.mygo_cache.json
+.mygo_embeddings.npy
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# uv
+uv.lock
