@@ -148,14 +148,71 @@ def print_results(query, results, mode):
         print(f"     {img['url']}\n")
 
 
+def fzf_mode(query, model, embeddings, images, top_n=20):
+    """Pipe semantic search results into fzf, copy selected image to clipboard"""
+    results = semantic_search(query, model, embeddings, images, top_n=top_n)
+    # Format: "idx | score | alt | episode | url"
+    lines = []
+    for i, (score, img) in enumerate(results):
+        lines.append(f"{img['alt']}\t{score:.4f}\t{img['episode']}\t{img['url']}")
+    fzf_input = "\n".join(lines)
+    try:
+        proc = subprocess.run(
+            ["fzf", "--delimiter=\t",
+             "--with-nth=1,2,3",
+             "--header=Select image to copy (TAB fields: alt / score / episode)",
+             "--preview-window=hidden"],
+            input=fzf_input, capture_output=True, text=True
+        )
+    except FileNotFoundError:
+        print("fzf not found, please install it: brew install fzf")
+        return
+    if proc.returncode != 0:
+        return
+    selected = proc.stdout.strip()
+    if not selected:
+        return
+    parts = selected.split("\t")
+    url = parts[-1]
+    alt = parts[0]
+    print(f"Copying \"{alt}\"...")
+    try:
+        copy_image_to_clipboard(url)
+        print("Copied to clipboard!")
+    except Exception as e:
+        print(f"Failed to copy: {e}")
+
+
 def main():
+    use_fzf = "--no-fzf" not in sys.argv
+    args = [a for a in sys.argv[1:] if a != "--no-fzf"]
+
     images = load_images()
     model = load_model()
     embeddings = build_embeddings(model, images)
     print()
 
-    if len(sys.argv) > 1:
-        query = " ".join(sys.argv[1:])
+    if use_fzf:
+        if args:
+            query = " ".join(args)
+            fzf_mode(query, model, embeddings, images)
+        else:
+            # Loop: search -> fzf -> copy, repeat
+            print("fzf mode (q to quit)\n")
+            while True:
+                try:
+                    query = input("Search> ").strip()
+                except (EOFError, KeyboardInterrupt):
+                    print()
+                    break
+                if not query or query.lower() == "q":
+                    break
+                fzf_mode(query, model, embeddings, images)
+                print()
+        return
+
+    if args:
+        query = " ".join(args)
         results = semantic_search(query, model, embeddings, images)
         print_results(query, results, "semantic")
         return
