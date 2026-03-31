@@ -156,14 +156,21 @@ def fzf_mode(query, model, embeddings, images, top_n=20):
     for i, (score, img) in enumerate(results):
         lines.append(f"{img['alt']}\t{score:.4f}\t{img['episode']}\t{img['url']}")
     fzf_input = "\n".join(lines)
+    preview_script = os.path.join(BASE_DIR, "preview.sh")
     try:
+        # Write input to temp file so fzf can use stdin/stdout from tty
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+            f.write(fzf_input)
+            tmp_input = f.name
         proc = subprocess.run(
-            ["fzf", "--delimiter=\t",
-             "--with-nth=1,2,3",
-             "--header=Select image to copy (TAB fields: alt / score / episode)",
-             "--preview-window=hidden"],
-            input=fzf_input, capture_output=True, text=True
+            f'cat "{tmp_input}" | fzf --delimiter="\t"'
+            f' --with-nth=1,2,3'
+            f' --header="Select image to copy (TAB fields: alt / score / episode)"'
+            f' --preview="{preview_script} {{-1}}"'
+            f' --preview-window=right,60%',
+            shell=True, capture_output=True, text=True
         )
+        os.unlink(tmp_input)
     except FileNotFoundError:
         print("fzf not found, please install it: brew install fzf")
         return
