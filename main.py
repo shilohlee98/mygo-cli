@@ -1,5 +1,5 @@
 def main():
-    print("Hello from mygobot!")
+    print("Hello from mygocli!")
 
 
 if __name__ == "__main__":

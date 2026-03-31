@@ -23,7 +23,7 @@ brew install fzf chafa
 
 ```bash
 git clone <repo-url>
-cd mygobot
+cd mygocli
 uv tool install .
 ```
 
