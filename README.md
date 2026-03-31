@@ -1,4 +1,4 @@
-# mygobot
+# mygo-cli
 
 A MyGo meme image search tool with semantic and fuzzy search. Browse results interactively with fzf and copy images to clipboard.
 
