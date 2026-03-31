@@ -24,25 +24,33 @@ brew install fzf chafa
 ```bash
 git clone <repo-url>
 cd mygobot
-uv sync
+uv tool install .
 ```
 
 On first run, image data is fetched from the API and cached locally. The `paraphrase-multilingual-MiniLM-L12-v2` model is also downloaded for semantic search.
 
 ## Usage
 
+After installation, the `mygo` command is available globally:
+
 ```bash
 # Interactive fzf mode (default)
-uv run mygo
+mygo
 
 # Search with a query directly
-uv run mygo haha
+mygo haha
 
 # Plain text output (no fzf)
-uv run mygo --no-fzf
+mygo --no-fzf
 
 # Plain text with query
-uv run mygo --no-fzf haha
+mygo --no-fzf haha
+```
+
+Alternatively, run without installing globally:
+
+```bash
+uv run mygo
 ```
 
 ### Interactive Commands (--no-fzf mode)
