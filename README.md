@@ -59,3 +59,7 @@ uv run mygo
 - `/f <query>` — fuzzy search
 - Enter a number — copy that image to clipboard
 - `q` — quit
+
+## Acknowledgements
+
+Image data provided by [Miyago9267](https://github.com/miyago9267)'s [MyGO-Searcher](https://github.com/miyago9267/MyGO-Searcher) API.
