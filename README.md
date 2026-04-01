@@ -2,6 +2,10 @@
 
 A MyGo meme image search tool with semantic and fuzzy search. Browse results interactively with fzf and copy images to clipboard.
 
+
+https://github.com/user-attachments/assets/626674c4-4817-47f3-8c6d-4494a7e3bb20
+
+
 ## Requirements
 
 - macOS (clipboard uses `osascript`)
