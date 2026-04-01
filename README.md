@@ -5,7 +5,7 @@ A MyGo meme image search tool with semantic and fuzzy search. Browse results int
 ## Requirements
 
 - macOS (clipboard uses `osascript`)
-- Python >= 3.11
+- Python = 3.11
 - [uv](https://docs.astral.sh/uv/)
 
 ## External Dependencies
