@@ -8,6 +8,8 @@ A MyGo meme image search tool with semantic and fuzzy search. Browse results int
 - Python = 3.11
 - [uv](https://docs.astral.sh/uv/)
 
+> **Note:** macOS built-in Terminal.app and tmux render fzf preview poorly. For best experience, use [iTerm2](https://iterm2.com/), [Kitty](https://sw.kovidgoyal.net/kitty/), or [Ghostty](https://ghostty.org/) without tmux.
+
 ## External Dependencies
 
 ```bash
