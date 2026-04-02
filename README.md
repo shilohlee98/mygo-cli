@@ -33,7 +33,13 @@ cd mygocli
 uv tool install .
 ```
 
-On first run, image data is fetched from the API and cached locally. The `paraphrase-multilingual-MiniLM-L12-v2` model is also downloaded for semantic search.
+If the tool is already installed and you want the new ONNX dependencies, reinstall it:
+
+```bash
+uv tool install --reinstall .
+```
+
+On first run, image data is fetched from the API and cached locally. The `paraphrase-multilingual-MiniLM-L12-v2` model is downloaded, exported to ONNX, and an int8-quantized ONNX variant is cached for faster follow-up searches.
 
 ## Usage
 
@@ -57,6 +63,16 @@ Alternatively, run without installing globally:
 
 ```bash
 uv run mygo
+```
+
+Performance toggles:
+
+```bash
+# Fall back to the original PyTorch backend
+MYGO_MODEL_BACKEND=torch mygo
+
+# Keep ONNX but skip int8 quantization
+MYGO_ONNX_QUANTIZATION=off mygo
 ```
 
 ### Interactive Commands (--no-fzf mode)

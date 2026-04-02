@@ -4,6 +4,7 @@
 import json
 import logging
 import os
+import platform
 import ssl
 import subprocess
 import sys
@@ -11,7 +12,13 @@ import tempfile
 import urllib.request
 import warnings
 from difflib import SequenceMatcher
+from pathlib import Path
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+HF_CACHE_DIR = os.environ.get("MYGO_HF_CACHE_DIR", os.path.join(BASE_DIR, ".hf-cache"))
+
+os.environ.setdefault("HF_HOME", HF_CACHE_DIR)
+os.environ.setdefault("HF_HUB_CACHE", os.path.join(HF_CACHE_DIR, "hub"))
 os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
 os.environ["HF_HUB_DISABLE_IMPLICIT_TOKEN"] = "1"
 os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
@@ -23,17 +30,22 @@ warnings.filterwarnings("ignore")
 logging.disable(logging.WARNING)
 
 import numpy as np
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, export_dynamic_quantized_onnx_model
 
 SSL_CTX = ssl.create_default_context()
 SSL_CTX.check_hostname = False
 SSL_CTX.verify_mode = ssl.CERT_NONE
 
 API_BASE = "https://mygo.miyago9267.com/api/v1/images"
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CACHE_FILE = os.path.join(BASE_DIR, ".mygo_cache.json")
-EMBEDDINGS_FILE = os.path.join(BASE_DIR, ".mygo_embeddings.npy")
 MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
+MODEL_SLUG = MODEL_NAME.replace("/", "__")
+EMBEDDINGS_FILE = os.path.join(BASE_DIR, f".mygo_embeddings.{MODEL_SLUG}.npy")
+ONNX_MODEL_DIR = os.path.join(BASE_DIR, ".mygo_models", MODEL_SLUG)
+MODEL_BACKEND = os.environ.get("MYGO_MODEL_BACKEND", "onnx").strip().lower()
+ONNX_QUANTIZATION = os.environ.get("MYGO_ONNX_QUANTIZATION", "auto").strip().lower()
+ONNX_PROVIDER = os.environ.get("MYGO_ONNX_PROVIDER", "CPUExecutionProvider").strip()
+VALID_ONNX_QUANTIZATION = {"arm64", "avx2", "avx512", "avx512_vnni"}
 PAGE_LIMIT = 100
 
 
@@ -70,9 +82,88 @@ def load_images():
 
 def load_model():
     """Load sentence-transformers model"""
-    print(f"Loading model {MODEL_NAME}...")
-    model = SentenceTransformer(MODEL_NAME)
-    return model
+    print(f"Loading model {MODEL_NAME} [{MODEL_BACKEND}]...")
+    if MODEL_BACKEND == "torch":
+        return SentenceTransformer(MODEL_NAME)
+    if MODEL_BACKEND != "onnx":
+        raise ValueError("MYGO_MODEL_BACKEND must be 'onnx' or 'torch'")
+    try:
+        return load_onnx_model()
+    except Exception as exc:
+        print(f"ONNX backend unavailable, falling back to PyTorch: {exc}")
+        return SentenceTransformer(MODEL_NAME)
+
+
+def resolve_onnx_quantization():
+    """Resolve ONNX quantization target based on env or host CPU."""
+    if ONNX_QUANTIZATION in {"", "0", "false", "no", "none", "off"}:
+        return None
+    if ONNX_QUANTIZATION == "auto":
+        machine = platform.machine().lower()
+        return "arm64" if machine in {"arm64", "aarch64"} else "avx2"
+    if ONNX_QUANTIZATION not in VALID_ONNX_QUANTIZATION:
+        valid = ", ".join(sorted(VALID_ONNX_QUANTIZATION))
+        raise ValueError(f"MYGO_ONNX_QUANTIZATION must be one of: auto, off, {valid}")
+    return ONNX_QUANTIZATION
+
+
+def quantized_onnx_file_name(quantization_config):
+    """Sentence Transformers stores quantized ONNX weights under onnx/model_<suffix>.onnx."""
+    return f"model_qint8_{quantization_config}.onnx"
+
+
+def onnx_model_kwargs(file_name=None):
+    """Use a deterministic ONNX provider so the CLI does not probe slower providers every run."""
+    model_kwargs = {"provider": ONNX_PROVIDER}
+    if file_name:
+        model_kwargs["file_name"] = file_name
+    return model_kwargs
+
+
+def load_onnx_model():
+    """Load a cached ONNX model and quantize it once for faster CPU inference."""
+    model_dir = Path(ONNX_MODEL_DIR)
+    model_dir.mkdir(parents=True, exist_ok=True)
+
+    quantization = resolve_onnx_quantization()
+    quantized_model = model_dir / "onnx" / quantized_onnx_file_name(quantization) if quantization else None
+    regular_model = model_dir / "onnx" / "model.onnx"
+
+    if quantized_model and quantized_model.exists():
+        print(f"Loading cached quantized ONNX model ({quantized_model.name})...")
+        return SentenceTransformer(
+            model_dir.as_posix(),
+            backend="onnx",
+            model_kwargs=onnx_model_kwargs(quantized_model.name),
+        )
+
+    if regular_model.exists():
+        print("Loading cached ONNX model...")
+        model = SentenceTransformer(model_dir.as_posix(), backend="onnx", model_kwargs=onnx_model_kwargs())
+    else:
+        print("Exporting ONNX model (first run)...")
+        model = SentenceTransformer(MODEL_NAME, backend="onnx", model_kwargs=onnx_model_kwargs())
+        model.save_pretrained(model_dir.as_posix())
+
+    if not quantization:
+        return model
+
+    try:
+        print(f"Quantizing ONNX model to int8 ({quantization})...")
+        export_dynamic_quantized_onnx_model(
+            model=model,
+            quantization_config=quantization,
+            model_name_or_path=model_dir.as_posix(),
+        )
+        print("Quantized ONNX model cached")
+        return SentenceTransformer(
+            model_dir.as_posix(),
+            backend="onnx",
+            model_kwargs=onnx_model_kwargs(quantized_model.name),
+        )
+    except Exception as exc:
+        print(f"Quantized ONNX unavailable, using regular ONNX: {exc}")
+        return model
 
 
 def build_embeddings(model, images):

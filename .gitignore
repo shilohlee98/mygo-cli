@@ -1,6 +1,9 @@
 # Cache
 .mygo_cache.json
-.mygo_embeddings.npy
+.mygo_embeddings*.npy
+.mygo_models/
+.hf-cache/
+.uv-cache/
 
 # Python
 __pycache__/
