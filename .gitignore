@@ -1,14 +1,28 @@
+# macOS
+.DS_Store
+
 # Cache
 .mygo_cache.json
 .mygo_embeddings*.npy
 .mygo_models/
 .hf-cache/
 .uv-cache/
+:memory:.ses
 
 # Python
 __pycache__/
 *.pyc
+*.egg-info/
 .venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
-# uv
-uv.lock
+# Build and release artifacts
+build/
+dist/
+*.dmg
+*.dmg.sha256
+*.spec~

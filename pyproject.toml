@@ -1,12 +1,20 @@
 [project]
 name = "mygocli"
 version = "0.1.0"
-description = "Add your description here"
+description = "Hybrid semantic and text search for MyGo meme images"
 readme = "README.md"
 license = "MIT"
 requires-python = "==3.11.*"
 dependencies = [
-    "sentence-transformers[onnx]>=5.3.0",
+    "numpy>=1.26",
+    "onnxruntime>=1.20",
+    "pyobjc-framework-cocoa>=10.3; sys_platform == 'darwin'",
+    "tokenizers>=0.21",
+]
+
+[dependency-groups]
+app = [
+    "pyinstaller>=6.11",
 ]
 
 [build-system]
@@ -18,3 +26,4 @@ packages = ["."]
 
 [project.scripts]
 mygo = "mygo_search:main"
+mygo-app = "mygo_app:main"
